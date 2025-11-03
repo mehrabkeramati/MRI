@@ -1,0 +1,86 @@
+clear all
+load("Ex1_MRIvolume.mat")
+s_original_LPA=slice(volume_orig.x,volume_orig.y,volume_orig.z,volume_orig.mri,volume_orig.LPA(1),volume_orig.LPA(2),volume_orig.LPA(3));
+hold on
+set(s_original_LPA,'edgecolor','none');
+colormap gray;
+plot3(volume_orig.LPA(1),volume_orig.LPA(2),volume_orig.LPA(3),'o','Color','r','MarkerSize',20,'MarkerFaceColor','r')
+plot3(volume_orig.NAS(1),volume_orig.NAS(2),volume_orig.NAS(3),'o','Color','g','MarkerSize',20,'MarkerFaceColor','g')
+plot3(volume_orig.RPA(1),volume_orig.RPA(2),volume_orig.RPA(3),'o','Color','b','MarkerSize',20,'MarkerFaceColor','b')
+hold off 
+
+
+figure
+s_rototranslated_LPA=slice(volume_rototranslated.x,volume_rototranslated.y,volume_rototranslated.z,volume_rototranslated.mri,volume_rototranslated.LPA(1),volume_rototranslated.LPA(2),volume_rototranslated.LPA(3));
+hold on
+set(s_rototranslated_LPA,'edgecolor','none');
+colormap gray;
+plot3(volume_rototranslated.LPA(1),volume_rototranslated.LPA(2),volume_rototranslated.LPA(3),'o','Color','r','MarkerSize',20,'MarkerFaceColor','r')
+plot3(volume_rototranslated.NAS(1),volume_rototranslated.NAS(2),volume_rototranslated.NAS(3),'o','Color','g','MarkerSize',20,'MarkerFaceColor','g')
+plot3(volume_rototranslated.RPA(1),volume_rototranslated.RPA(2),volume_rototranslated.RPA(3),'o','Color','b','MarkerSize',20,'MarkerFaceColor','b')
+
+rototranslational_back(volume_orig.x,volume_orig.y,volume_orig.z,volume_rototranslated.x,volume_rototranslated.y,volume_rototranslated.z,volume_orig.mri,volume_rototranslated.mri,volume_orig.NAS,volume_orig.LPA,volume_orig.RPA,volume_rototranslated.NAS,volume_rototranslated.LPA,volume_rototranslated.RPA)
+
+
+
+function f=rototranslational_back(volume_orig_x,volume_orig_y,volume_orig_z,volume_rt_x,volume_rt_y,volume_rt_z,mri_orig,mri_rt,NAS,LPA,RPA,rt_NAS,rt_LPA,rt_RPA)
+
+
+%%Axis coordinates for the original image
+origin=(LPA(1:3)+RPA(1:3))/2;
+x=RPA(1:3)-origin;
+x=x/norm(x);
+mean=LPA(1:3);
+y=NAS(1:3)-origin;
+y=y/norm(y);
+z=cross(x,y);
+%%Axis coordinates for the rototranslated image
+origin_rt=(rt_LPA(1:3)+rt_RPA(1:3))/2;
+x_rt=rt_RPA(1:3)-origin_rt;
+x_rt=x_rt/norm(x_rt);
+mean_rt=rt_LPA(1:3);
+y_rt=rt_NAS(1:3)-origin_rt;
+y_rt=y_rt/norm(y_rt);
+z_rt=cross(x_rt,y_rt); 
+
+
+M=zeros(4,4);
+x=[x;0];
+y=[y;0];
+z=[z;0];
+mean=[mean;1];
+M=[x y z mean];
+M1=zeros(4,4);
+x_rt=[x_rt;0];
+y_rt=[y_rt;0];
+z_rt=[z_rt;0];
+mean_rt=[mean_rt;1];
+M1=[x_rt y_rt z_rt mean_rt];
+M_total=M*inv(M1);
+
+
+x_reshaped=reshape(volume_orig_x,1,[]);
+y_reshaped=reshape(volume_orig_y,1,[]);
+z_reshaped=reshape(volume_orig_z,1,[]);
+coordinates_resh=ones(4,length(z_reshaped));
+coordinates_resh(1,:)=x_reshaped.*coordinates_resh(1,:);
+coordinates_resh(2,:)=y_reshaped.*coordinates_resh(2,:);
+coordinates_resh(3,:)=z_reshaped.*coordinates_resh(3,:);
+
+coordinates_resh_mult=inv(M_total)*coordinates_resh;
+
+x_back=reshape(coordinates_resh_mult(1,:),size(volume_orig_x));
+y_back=reshape(coordinates_resh_mult(2,:),size(volume_orig_x));
+z_back=reshape(coordinates_resh_mult(3,:),size(volume_orig_x));
+
+figure
+interpolated_mri=interp3(volume_orig_x,volume_orig_y,volume_orig_z,mri_rt,x_back,y_back,z_back);
+s_rototranslated_LPA=slice(volume_rt_x,volume_rt_y,volume_rt_z,interpolated_mri,rt_LPA(1),rt_LPA(2),rt_LPA(3));
+hold on
+set(s_rototranslated_LPA,'edgecolor','none');
+colormap gray;
+
+
+figure
+imshowpair(interpolated_mri(:,:,100),mri_orig(:,:,100));
+end
